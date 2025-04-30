@@ -52,3 +52,11 @@ func (s *DatabaseService) SomeQuery() (count uint64, err error) {
 	err = row.Scan(&count)
 	return count, err
 }
+
+func (s *DatabaseService) LatestBlock() uint64 {
+	return 0
+}
+
+func (s *DatabaseService) OldestBlock() uint64 {
+	return 0
+}

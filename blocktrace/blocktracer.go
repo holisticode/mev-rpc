@@ -18,6 +18,7 @@ const (
 	BLOCK_BY_HASH_RPC     = "eth_getBlockByHash"
 	HEX_PREFIX            = "0x"
 	LAST_CONSIDERED_BLOCK = 21_000_000
+	FLASHBOTS_COINBASE    = "0xdafea492d9c6733ae3d56b7ed1adb60692c98bc5"
 )
 
 type TraceBlockResponse []BlockData
@@ -149,7 +150,16 @@ func (t *Tracer) Start() {
 				panic(err)
 			}
 			miner := block.Miner
+			if miner == FLASHBOTS_COINBASE {
+				t.log.Debug("this block was mined by flashbots", "hash", blockHash)
+			}
 			t.log.Debug("miner", slog.String("address", miner))
+			for _, tx := range traceBlock {
+				// t.log.Debug("to:", "hash", tx.Action.To)
+				if tx.Action.To == miner {
+					t.log.Debug("found tx for coinbase address", "hash", tx.TransactionHash)
+				}
+			}
 			last += 1
 			if testing {
 				break

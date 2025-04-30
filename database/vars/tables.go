@@ -6,6 +6,7 @@ import "github.com/flashbots/go-template/common"
 var (
 	tablePrefix = common.GetEnv("DB_TABLE_PREFIX", "dev")
 
-	TableMigrations = tablePrefix + "_migrations"
-	TableTest       = tablePrefix + "_test"
+	TableMigrations   = tablePrefix + "_migrations"
+	TableTest         = tablePrefix + "_test"
+	TableMEVAnalytics = tablePrefix + "_mev_analytics"
 )

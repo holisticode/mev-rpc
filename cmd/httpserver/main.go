@@ -111,7 +111,12 @@ func main() {
 			dbConn := cCtx.String("db-connection-string")
 
 			log.Debug("Creating DB backend connection...")
-			storage := blocktrace.NewStorage(dbConn)
+			storage, err := blocktrace.NewStorage(dbConn)
+			if err != nil {
+				cfg.Log.Error("failed to create database service", "err", err)
+				return err
+			}
+
 			log.Debug("Creating Block Tracer...")
 			tracer := blocktrace.NewBlockTracer(rpcEndpoint, storage, log)
 			// TODO cleanup
