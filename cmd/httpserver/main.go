@@ -7,6 +7,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/flashbots/go-template/blocktrace"
 	"github.com/flashbots/go-template/common"
 	"github.com/flashbots/go-template/httpserver"
 	"github.com/google/uuid"
@@ -31,7 +32,7 @@ var flags []cli.Flag = []cli.Flag{
 	},
 	&cli.BoolFlag{
 		Name:  "log-debug",
-		Value: false,
+		Value: true,
 		Usage: "log debug messages",
 	},
 	&cli.BoolFlag{
@@ -41,7 +42,7 @@ var flags []cli.Flag = []cli.Flag{
 	},
 	&cli.StringFlag{
 		Name:  "log-service",
-		Value: "your-project",
+		Value: "MEV-Block-Tracer",
 		Usage: "add 'service' tag to logs",
 	},
 	&cli.BoolFlag{
@@ -53,6 +54,17 @@ var flags []cli.Flag = []cli.Flag{
 		Name:  "drain-seconds",
 		Value: 45,
 		Usage: "seconds to wait in drain HTTP request",
+	},
+	&cli.StringFlag{
+		Name:  "db-connection-string",
+		Value: "",
+		Usage: "postgres database backend",
+	},
+	&cli.StringFlag{
+		Name:     "rpc-endpoint",
+		Value:    "",
+		Usage:    "chain rpc endpoint",
+		Required: true,
 	},
 }
 
@@ -95,6 +107,18 @@ func main() {
 				WriteTimeout:             30 * time.Second,
 			}
 
+			rpcEndpoint := cCtx.String("rpc-endpoint")
+			dbConn := cCtx.String("db-connection-string")
+
+			log.Debug("Creating DB backend connection...")
+			storage := blocktrace.NewStorage(dbConn)
+			log.Debug("Creating Block Tracer...")
+			tracer := blocktrace.NewBlockTracer(rpcEndpoint, storage, log)
+			// TODO cleanup
+			log.Info("Starting tracer...")
+			go tracer.Start()
+
+			log.Info("Starting RPC server...")
 			srv, err := httpserver.New(cfg)
 			if err != nil {
 				cfg.Log.Error("failed to create server", "err", err)
@@ -107,6 +131,7 @@ func main() {
 			<-exit
 
 			// Shutdown server once termination signal is received
+			log.Info("Shutting down the application")
 			srv.Shutdown()
 			return nil
 		},

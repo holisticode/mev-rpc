@@ -50,12 +50,11 @@ func New(cfg *HTTPServerConfig) (srv *Server, err error) {
 	}
 	srv.isReady.Swap(true)
 
-	srv.srv = &http.Server{
-		Addr:         cfg.ListenAddr,
-		Handler:      srv.getRouter(),
-		ReadTimeout:  cfg.ReadTimeout,
-		WriteTimeout: cfg.WriteTimeout,
+	rpcsrv, err := NewJSONRPCServer(cfg)
+	if err != nil {
+		return nil, err
 	}
+	srv.srv = rpcsrv
 
 	return srv, nil
 }
