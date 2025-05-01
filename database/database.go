@@ -4,8 +4,8 @@ package database
 import (
 	"os"
 
-	"github.com/flashbots/go-template/database/migrations"
-	"github.com/flashbots/go-template/database/vars"
+	"github.com/holisticode/mev-rpc/database/migrations"
+	"github.com/holisticode/mev-rpc/database/vars"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	migrate "github.com/rubenv/sql-migrate"
@@ -59,4 +59,8 @@ func (s *DatabaseService) LatestBlock() uint64 {
 
 func (s *DatabaseService) OldestBlock() uint64 {
 	return 0
+}
+
+func (s *DatabaseService) SaveMEVBLock(block *MEVBlock) error {
+	return nil
 }

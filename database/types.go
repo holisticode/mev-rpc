@@ -2,8 +2,18 @@ package database
 
 import (
 	"database/sql"
+	"math/big"
 	"time"
 )
+
+type MEVBlock struct {
+	BlockNumber     uint64
+	BlockHash       string
+	MEVTransactions []string
+	Miner           string
+	IsFlashbotMiner bool
+	TotalMinerValue *big.Int
+}
 
 func NewNullInt64(i int64) sql.NullInt64 {
 	return sql.NullInt64{

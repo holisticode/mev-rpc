@@ -4,15 +4,18 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/flashbots/go-utils/rpcclient"
+	"github.com/holisticode/mev-rpc/database"
 )
 
 const (
 	CALL_TIMEOUT          = 10 * time.Second
+	POLLING_INTERVAL      = 6 * time.Second
 	LAST_BLOCK_RPC        = "eth_blockNumber"
 	TRACE_BLOCK_RPC       = "trace_block"
 	BLOCK_BY_HASH_RPC     = "eth_getBlockByHash"
@@ -21,149 +24,141 @@ const (
 	FLASHBOTS_COINBASE    = "0xdafea492d9c6733ae3d56b7ed1adb60692c98bc5"
 )
 
-type TraceBlockResponse []BlockData
-
-type BlockData struct {
-	Action              Action   `json:"action"`
-	BlockHash           string   `json:"blockHash"`
-	BlockNumber         uint64   `json:"blockNumber"`
-	Result              Result   `json:"result"`
-	Subtraces           uint64   `json:"subtraces"`
-	TraceAddress        []uint64 `json:"traceAddress"`
-	TransactionHash     string   `json:"transactionHash"`
-	TransactionPosition uint64   `json:"transactionPosition"`
-	Type                string   `json:"type"`
-}
-
-type Action struct {
-	From     string `json:"from"`
-	CallType string `json:"callType"`
-	Gas      string `json:"gas"`
-	Input    string `json:"input"`
-	To       string `json:"to"`
-	Value    string `json:"value"`
-}
-
-type Result struct {
-	GasUsed string `json:"gasUsed"`
-	Output  string `json:"output"`
-}
-
-type Block struct {
-	Number           string   `json:"number"`
-	Hash             string   `json:"hash"`
-	Transactions     []string `json:"transactions"`
-	TotalDifficulty  string   `json:"totalDifficulty"`
-	LogsBloom        string   `json:"logsBloom"`
-	ReceiptsRoot     string   `json:"receiptsRoot"`
-	ExtraData        string   `json:"extraData"`
-	BaseFeePerGas    string   `json:"baseFeePerGas"`
-	Nonce            string   `json:"nonce"`
-	Miner            string   `json:"miner"`
-	Difficulty       string   `json:"difficulty"`
-	GasLimit         string   `json:"gasLimit"`
-	GasUsed          string   `json:"gasUsed"`
-	Uncles           []string `json:"uncles"`
-	Sha3Uncles       string   `json:"sha3Uncles"`
-	Size             string   `json:"size"`
-	TransactionsRoot string   `json:"transactionsRoot"`
-	StateRoot        string   `json:"stateRoot"`
-	MixHash          string   `json:"mixHash"`
-	ParentHash       string   `json:"parentHash"`
-	Timestamp        string   `json:"timestamp"`
-}
-
 type Tracer struct {
-	storage MEVTraceStorage
-	rpcurl  string
-	log     *slog.Logger
+	storage   database.MEVTraceStorage
+	rpcClient rpcclient.RPCClient
+	log       *slog.Logger
 }
 
-func NewBlockTracer(rpcurl string, storage MEVTraceStorage, log *slog.Logger) *Tracer {
+func NewBlockTracer(rpcClient rpcclient.RPCClient, storage database.MEVTraceStorage, log *slog.Logger) *Tracer {
 	return &Tracer{
 		storage,
-		rpcurl,
+		rpcClient,
 		log,
 	}
 }
 
-func (t *Tracer) Start() {
-	// first get the latest saved block on the DB
-	lastDBBlock := t.storage.LatestBlock()
-	// now get the latest block from the chain
-	rpcClient := rpcclient.NewClient(t.rpcurl)
-	ctx, cancel := context.WithTimeout(context.Background(), CALL_TIMEOUT)
-	resp, err := rpcClient.Call(ctx, LAST_BLOCK_RPC, nil)
-	if err != nil {
-		// TODO
-		panic(err)
-	}
-	cancel()
-	lastChainBlockStr, err := resp.GetString()
-	if err != nil {
-		// TODO
-		panic(err)
-	}
-	if strings.HasPrefix(lastChainBlockStr, HEX_PREFIX) {
-		lastChainBlockStr = lastChainBlockStr[2:]
-	}
-	lastChainBlock, err := strconv.ParseUint(lastChainBlockStr, 16, 64)
-	if err != nil {
-		// TODO
-		panic(err)
-	}
-	t.log.Debug("last chain block", "number", lastChainBlock)
+func (t *Tracer) Start(ctx context.Context, polling_interval time.Duration) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(polling_interval):
+		}
+		t.log.Debug("Polling chain for head block...")
+		// first get the latest saved block on the DB
+		lastDBBlock := t.storage.LatestBlock()
+		// now get the latest block from the chain
+		ctx, cancel := context.WithTimeout(context.Background(), CALL_TIMEOUT)
+		resp, err := t.rpcClient.Call(ctx, LAST_BLOCK_RPC, nil)
+		if err != nil {
+			// TODO add to error metrics
+			t.log.Error("failed rpc call", "endpoint", LAST_BLOCK_RPC, "error", err)
+			// no use to do anything at this point
+			continue
+		}
+		cancel()
+		lastChainBlockStr, err := resp.GetString()
+		if err != nil {
+			// TODO add to error metrics
+			t.log.Error("failed to get string from response", "endpoint", LAST_BLOCK_RPC, "error", err)
+		}
+		lastChainBlockStr = sanitizeHexString(lastChainBlockStr)
+		lastChainBlock, err := strconv.ParseUint(lastChainBlockStr, 16, 64)
+		if err != nil {
+			// TODO add to error metrics
+			t.log.Error("failed to parse string into uint", "endpoint", LAST_BLOCK_RPC, "error", err)
+			continue
+		}
+		t.log.Debug("last chain block", "number", lastChainBlock)
 
-	testing := true
-
-	if lastDBBlock < uint64(lastChainBlock) {
-		t.log.Info("Need to catch up with chain", slog.Uint64("latest DB block", lastDBBlock), slog.Uint64("latest chain block", uint64(lastChainBlock)))
-		last := lastDBBlock
-		for last < uint64(lastChainBlock) {
-			ctx, cancel = context.WithTimeout(context.Background(), CALL_TIMEOUT)
-			fetch := fmt.Sprintf("%x", last)
-			fetch = "0x" + lastChainBlockStr
-			t.log.Debug("Fetching...", slog.String("block", fetch))
-			resp, err := rpcClient.Call(ctx, TRACE_BLOCK_RPC, fetch)
-			// TODO: check resp.RPCError too!
-			if err != nil {
-				panic(err)
-			}
-			cancel()
-			var traceBlock TraceBlockResponse
-			err = resp.GetObject(&traceBlock)
-			if err != nil {
-				panic(err)
-			}
-			t.log.Debug("Fetched traceBlock", slog.Any("block", traceBlock[0].BlockHash))
-			blockHash := traceBlock[0].BlockHash
-			ctx, cancel = context.WithTimeout(context.Background(), CALL_TIMEOUT)
-			actualBlock, err := rpcClient.Call(ctx, BLOCK_BY_HASH_RPC, blockHash, false)
-			if err != nil {
-				panic(err)
-			}
-			t.log.Debug("Fetched block by hash")
-			cancel()
-			var block Block
-			err = actualBlock.GetObject(&block)
-			if err != nil {
-				panic(err)
-			}
-			miner := block.Miner
-			if miner == FLASHBOTS_COINBASE {
-				t.log.Debug("this block was mined by flashbots", "hash", blockHash)
-			}
-			t.log.Debug("miner", slog.String("address", miner))
-			for _, tx := range traceBlock {
-				// t.log.Debug("to:", "hash", tx.Action.To)
-				if tx.Action.To == miner {
-					t.log.Debug("found tx for coinbase address", "hash", tx.TransactionHash)
+		if lastDBBlock < uint64(lastChainBlock) {
+			t.log.Info("Need to catch up with chain", slog.Uint64("latest DB block", lastDBBlock), slog.Uint64("latest chain block", uint64(lastChainBlock)))
+			last := lastDBBlock
+			for last <= uint64(lastChainBlock) {
+				ctx, cancel = context.WithTimeout(context.Background(), CALL_TIMEOUT)
+				fetch := fmt.Sprintf("0x%x", last)
+				t.log.Debug("Fetching...", slog.String("block", fetch))
+				resp, err := t.rpcClient.Call(ctx, TRACE_BLOCK_RPC, fetch)
+				defer cancel()
+				if err != nil {
+					// TODO add to error metrics
+					t.log.Error("failed rpc call", "endpoint", TRACE_BLOCK_RPC, "error", err)
+					continue
 				}
+				var traceBlock TraceBlockResponse
+				err = resp.GetObject(&traceBlock)
+				if err != nil {
+					// TODO add to error metrics
+					t.log.Error("failed to get block data from response", "endpoint", TRACE_BLOCK_RPC, "error", err)
+				}
+				t.log.Debug("Fetched traceBlock", slog.Any("block", traceBlock[0].BlockHash))
+				blockHash := traceBlock[0].BlockHash
+				ctx, cancel = context.WithTimeout(context.Background(), CALL_TIMEOUT)
+				actualBlock, err := t.rpcClient.Call(ctx, BLOCK_BY_HASH_RPC, blockHash, false)
+				defer cancel()
+				if err != nil {
+					t.log.Error("failed rpc call", "endpoint", BLOCK_BY_HASH_RPC, "error", err)
+					continue
+				}
+				t.log.Debug("Fetched block by hash")
+				var block Block
+				err = actualBlock.GetObject(&block)
+				if err != nil {
+					// TODO add to error metrics
+					t.log.Error("failed to get block from response", "endpoint", BLOCK_BY_HASH_RPC, "error", err)
+					continue
+				}
+				isFlashbotMiner := block.Miner == FLASHBOTS_COINBASE
+				if isFlashbotMiner {
+					t.log.Debug("this block was mined by flashbots", "hash", blockHash)
+				}
+				t.log.Debug("miner", slog.String("address", block.Miner))
+				txs := make([]string, 0)
+				total := big.NewInt(0)
+				for _, tx := range traceBlock {
+					if tx.Action.To == block.Miner {
+						t.log.Debug("found tx for coinbase address", "hash", tx.TransactionHash)
+						valStr := sanitizeHexString(tx.Action.Value)
+						val := new(big.Int)
+						val, ok := val.SetString(valStr, 16)
+						if !ok {
+							t.log.Error("Failed to set the transaction value!", "val", tx.Action.Value)
+						}
+						total = total.Add(total, val)
+						txs = append(txs, tx.TransactionHash)
+					}
+				}
+				if len(txs) > 0 {
+					mev_block := &database.MEVBlock{
+						BlockNumber:     last,
+						BlockHash:       blockHash,
+						MEVTransactions: txs,
+						Miner:           block.Miner,
+						IsFlashbotMiner: isFlashbotMiner,
+						TotalMinerValue: total,
+					}
+					t.log.Debug("saving entry to DB...", "blockNumber", last)
+					if err := t.storage.SaveMEVBLock(mev_block); err != nil {
+						// TODO: In this case, either retry, or catch up later...
+						// e.g. add to some queue or data structure for getting this block again
+						// or just retry storing later
+						t.log.Error("Failed to save MEV block to database!", "error", err)
+					}
+				}
+				last += 1
+				t.log.Debug("getting next block", "last", last)
 			}
-			last += 1
-			if testing {
-				break
-			}
+			t.log.Info("Caught up with chain head")
+		} else {
+			t.log.Info("DB is in sync with chain head")
 		}
 	}
+}
+
+func sanitizeHexString(s string) string {
+	if strings.HasPrefix(s, HEX_PREFIX) {
+		return s[2:]
+	}
+	return s
 }

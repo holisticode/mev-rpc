@@ -1,7 +1,7 @@
 package migrations
 
 import (
-	"github.com/flashbots/go-template/database/vars"
+	"github.com/holisticode/mev-rpc/database/vars"
 	migrate "github.com/rubenv/sql-migrate"
 )
 

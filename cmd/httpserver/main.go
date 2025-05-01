@@ -1,16 +1,19 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/flashbots/go-template/blocktrace"
-	"github.com/flashbots/go-template/common"
-	"github.com/flashbots/go-template/httpserver"
+	"github.com/flashbots/go-utils/rpcclient"
 	"github.com/google/uuid"
+	"github.com/holisticode/mev-rpc/blocktrace"
+	"github.com/holisticode/mev-rpc/common"
+	"github.com/holisticode/mev-rpc/database"
+	"github.com/holisticode/mev-rpc/httpserver"
 	"github.com/urfave/cli/v2" // imports as package "cli"
 )
 
@@ -111,17 +114,19 @@ func main() {
 			dbConn := cCtx.String("db-connection-string")
 
 			log.Debug("Creating DB backend connection...")
-			storage, err := blocktrace.NewStorage(dbConn)
+			storage, err := database.NewStorage(dbConn)
 			if err != nil {
 				cfg.Log.Error("failed to create database service", "err", err)
 				return err
 			}
 
 			log.Debug("Creating Block Tracer...")
-			tracer := blocktrace.NewBlockTracer(rpcEndpoint, storage, log)
+			rpcClient := rpcclient.NewClient(rpcEndpoint)
+			tracer := blocktrace.NewBlockTracer(rpcClient, storage, log)
 			// TODO cleanup
 			log.Info("Starting tracer...")
-			go tracer.Start()
+			ctx, cancel := context.WithCancel(context.Background())
+			go tracer.Start(ctx, blocktrace.POLLING_INTERVAL)
 
 			log.Info("Starting RPC server...")
 			srv, err := httpserver.New(cfg)
@@ -134,6 +139,7 @@ func main() {
 			signal.Notify(exit, os.Interrupt, syscall.SIGTERM)
 			srv.RunInBackground()
 			<-exit
+			cancel()
 
 			// Shutdown server once termination signal is received
 			log.Info("Shutting down the application")

@@ -4,9 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/flashbots/go-template/common"
-	"github.com/flashbots/go-template/database/migrations"
-	"github.com/flashbots/go-template/database/vars"
+	"github.com/holisticode/mev-rpc/common"
+	"github.com/holisticode/mev-rpc/database/migrations"
+	"github.com/holisticode/mev-rpc/database/vars"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
