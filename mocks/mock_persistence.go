@@ -34,6 +34,36 @@ func (m *MockMEVTraceStorage) EXPECT() *MockMEVTraceStorageMockRecorder {
 	return m.recorder
 }
 
+// GetMEVBlock mocks base method.
+func (m *MockMEVTraceStorage) GetMEVBlock(block string) (*database.MEVBlock, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMEVBlock", block)
+	ret0, _ := ret[0].(*database.MEVBlock)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetMEVBlock indicates an expected call of GetMEVBlock.
+func (mr *MockMEVTraceStorageMockRecorder) GetMEVBlock(block interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMEVBlock", reflect.TypeOf((*MockMEVTraceStorage)(nil).GetMEVBlock), block)
+}
+
+// GetMEVTx mocks base method.
+func (m *MockMEVTraceStorage) GetMEVTx(tx string) (*database.MEVTransaction, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMEVTx", tx)
+	ret0, _ := ret[0].(*database.MEVTransaction)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetMEVTx indicates an expected call of GetMEVTx.
+func (mr *MockMEVTraceStorageMockRecorder) GetMEVTx(tx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMEVTx", reflect.TypeOf((*MockMEVTraceStorage)(nil).GetMEVTx), tx)
+}
+
 // LatestBlock mocks base method.
 func (m *MockMEVTraceStorage) LatestBlock() (uint64, error) {
 	m.ctrl.T.Helper()
