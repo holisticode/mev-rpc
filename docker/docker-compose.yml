@@ -9,8 +9,7 @@ services:
       PGDATA: /data/postgres
       POSTGRES_DB: mev_analytics 
     volumes:
-      - db:/data/postgres
-      - ./init:/docker-entrypoint-initdb.d/
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5532:5432"
     networks:
@@ -24,6 +23,3 @@ services:
 networks:
   db:
     driver: bridge
-
-volumes:
-  db:

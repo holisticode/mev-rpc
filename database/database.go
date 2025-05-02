@@ -2,7 +2,9 @@
 package database
 
 import (
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/holisticode/mev-rpc/database/migrations"
 	"github.com/holisticode/mev-rpc/database/vars"
@@ -54,7 +56,7 @@ func (s *DatabaseService) SomeQuery() (count uint64, err error) {
 }
 
 func (s *DatabaseService) LatestBlock() uint64 {
-	return 0
+	return 21_000_000
 }
 
 func (s *DatabaseService) OldestBlock() uint64 {
@@ -62,5 +64,12 @@ func (s *DatabaseService) OldestBlock() uint64 {
 }
 
 func (s *DatabaseService) SaveMEVBLock(block *MEVBlock) error {
+	insert := `INSERT INTO mev_analytics (blocknumber, blockhash, txs, miner, flashbot, total) VALUES ($1, $2, $3, $4, $5, $6 )`
+	txs := strings.Join(block.MEVTransactions, ",")
+	value := block.TotalMinerValue.String()
+	_, err := s.DB.Exec(insert, block.BlockNumber, block.BlockHash, txs, block.Miner, block.IsFlashbotMiner, value)
+	if err != nil {
+		return fmt.Errorf("failed to insert row in DB: %v", err)
+	}
 	return nil
 }
