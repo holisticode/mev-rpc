@@ -9,12 +9,12 @@ import (
 )
 
 const (
-	RPC_MODULE_BY_TX    = "rpc-module-name_tx"
-	RPC_MODULE_BY_BLOCK = "rpc-module-name_block"
+	RPC_MODULE_BY_TX    = "mev_rpc_tx"
+	RPC_MODULE_BY_BLOCK = "mev_rpc_block"
 )
 
 func NewJSONRPCServer(cfg *HTTPServerConfig) (*http.Server, error) {
-	methods := map[string]interface{}{
+	methods := map[string]any{
 		RPC_MODULE_BY_BLOCK: handleByBlock,
 		RPC_MODULE_BY_TX:    handleByTx,
 	}

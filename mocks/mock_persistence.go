@@ -35,11 +35,12 @@ func (m *MockMEVTraceStorage) EXPECT() *MockMEVTraceStorageMockRecorder {
 }
 
 // LatestBlock mocks base method.
-func (m *MockMEVTraceStorage) LatestBlock() uint64 {
+func (m *MockMEVTraceStorage) LatestBlock() (uint64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LatestBlock")
 	ret0, _ := ret[0].(uint64)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // LatestBlock indicates an expected call of LatestBlock.
@@ -63,15 +64,15 @@ func (mr *MockMEVTraceStorageMockRecorder) OldestBlock() *gomock.Call {
 }
 
 // SaveMEVBLock mocks base method.
-func (m *MockMEVTraceStorage) SaveMEVBLock(block *database.MEVBlock) error {
+func (m *MockMEVTraceStorage) SaveMEVBLock(block *database.MEVBlock, txs []*database.MEVTransaction) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveMEVBLock", block)
+	ret := m.ctrl.Call(m, "SaveMEVBLock", block, txs)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SaveMEVBLock indicates an expected call of SaveMEVBLock.
-func (mr *MockMEVTraceStorageMockRecorder) SaveMEVBLock(block interface{}) *gomock.Call {
+func (mr *MockMEVTraceStorageMockRecorder) SaveMEVBLock(block, txs interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveMEVBLock", reflect.TypeOf((*MockMEVTraceStorage)(nil).SaveMEVBLock), block)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveMEVBLock", reflect.TypeOf((*MockMEVTraceStorage)(nil).SaveMEVBLock), block, txs)
 }

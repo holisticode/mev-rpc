@@ -24,9 +24,9 @@ func TestBlockTrace(t *testing.T) {
 	// Create a mock instance
 	mockStorage := mocks.NewMockMEVTraceStorage(ctrl)
 	s1 := mockStorage.EXPECT().LatestBlock().Return(uint64(22391064))
-	s2 := mockStorage.EXPECT().SaveMEVBLock(gomock.Any()).After(s1).Return(nil)
-	s3 := mockStorage.EXPECT().SaveMEVBLock(gomock.Any()).After(s2).Return(nil)
-	s4 := mockStorage.EXPECT().SaveMEVBLock(gomock.Any()).After(s3).Return(nil)
+	s2 := mockStorage.EXPECT().SaveMEVBLock(gomock.Any(), gomock.Any()).After(s1).Return(nil)
+	s3 := mockStorage.EXPECT().SaveMEVBLock(gomock.Any(), gomock.Any()).After(s2).Return(nil)
+	s4 := mockStorage.EXPECT().SaveMEVBLock(gomock.Any(), gomock.Any()).After(s3).Return(nil)
 	mockStorage.EXPECT().LatestBlock().After(s4).Return(uint64(22391066)).Do(cancel)
 
 	// Call the function under test, using the mock as a

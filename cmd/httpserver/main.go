@@ -119,6 +119,7 @@ func main() {
 				cfg.Log.Error("failed to create database service", "err", err)
 				return err
 			}
+			cfg.DBService = storage
 
 			log.Debug("Creating Block Tracer...")
 			rpcClient := rpcclient.NewClient(rpcEndpoint)
@@ -126,6 +127,7 @@ func main() {
 			// TODO cleanup
 			log.Info("Starting tracer...")
 			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 			go tracer.Start(ctx, blocktrace.POLLING_INTERVAL)
 
 			log.Info("Starting RPC server...")
@@ -139,7 +141,6 @@ func main() {
 			signal.Notify(exit, os.Interrupt, syscall.SIGTERM)
 			srv.RunInBackground()
 			<-exit
-			cancel()
 
 			// Shutdown server once termination signal is received
 			log.Info("Shutting down the application")

@@ -14,14 +14,13 @@ import (
 )
 
 const (
-	CALL_TIMEOUT          = 10 * time.Second
-	POLLING_INTERVAL      = 6 * time.Second
-	LAST_BLOCK_RPC        = "eth_blockNumber"
-	TRACE_BLOCK_RPC       = "trace_block"
-	BLOCK_BY_HASH_RPC     = "eth_getBlockByHash"
-	HEX_PREFIX            = "0x"
-	LAST_CONSIDERED_BLOCK = 21_000_000
-	FLASHBOTS_COINBASE    = "0xdafea492d9c6733ae3d56b7ed1adb60692c98bc5"
+	CALL_TIMEOUT       = 10 * time.Second
+	POLLING_INTERVAL   = 6 * time.Second
+	LAST_BLOCK_RPC     = "eth_blockNumber"
+	TRACE_BLOCK_RPC    = "trace_block"
+	BLOCK_BY_HASH_RPC  = "eth_getBlockByHash"
+	HEX_PREFIX         = "0x"
+	FLASHBOTS_COINBASE = "0xdafea492d9c6733ae3d56b7ed1adb60692c98bc5"
 )
 
 type Tracer struct {
@@ -47,7 +46,13 @@ func (t *Tracer) Start(ctx context.Context, polling_interval time.Duration) {
 		}
 		t.log.Debug("Polling chain for head block...")
 		// first get the latest saved block on the DB
-		lastDBBlock := t.storage.LatestBlock()
+		lastDBBlock, err := t.storage.LatestBlock()
+		if err != nil {
+			// TODO add to error metrics
+			t.log.Error("failed rpc call", "endpoint", LAST_BLOCK_RPC, "error", err)
+			// no use to do anything at this point
+			continue
+		}
 		// now get the latest block from the chain
 		ctx, cancel := context.WithTimeout(context.Background(), CALL_TIMEOUT)
 		resp, err := t.rpcClient.Call(ctx, LAST_BLOCK_RPC, nil)
@@ -114,32 +119,40 @@ func (t *Tracer) Start(ctx context.Context, polling_interval time.Duration) {
 					t.log.Debug("this block was mined by flashbots", "hash", blockHash)
 				}
 				t.log.Debug("miner", slog.String("address", block.Miner))
-				txs := make([]string, 0)
+				txs := make([]*database.MEVTransaction, 0)
 				total := big.NewInt(0)
 				for _, tx := range traceBlock {
 					if tx.Action.To == block.Miner {
 						t.log.Debug("found tx for coinbase address", "hash", tx.TransactionHash)
+						// TODO: maybe we don't need to convert the value to big.Int,
+						// as we are going to store the value as string in the database again?
 						valStr := sanitizeHexString(tx.Action.Value)
 						val := new(big.Int)
 						val, ok := val.SetString(valStr, 16)
 						if !ok {
 							t.log.Error("Failed to set the transaction value!", "val", tx.Action.Value)
 						}
+						mtx := &database.MEVTransaction{
+							TXHash:      tx.TransactionHash,
+							From:        tx.Action.From,
+							To:          tx.Action.To,
+							Value:       val,
+							BlockNumber: last,
+						}
 						total = total.Add(total, val)
-						txs = append(txs, tx.TransactionHash)
+						txs = append(txs, mtx)
 					}
 				}
 				if len(txs) > 0 {
 					mev_block := &database.MEVBlock{
 						BlockNumber:     last,
 						BlockHash:       blockHash,
-						MEVTransactions: txs,
 						Miner:           block.Miner,
 						IsFlashbotMiner: isFlashbotMiner,
 						TotalMinerValue: total,
 					}
-					t.log.Debug("saving entry to DB...", "blockNumber", last)
-					if err := t.storage.SaveMEVBLock(mev_block); err != nil {
+					t.log.Debug("saving block and txs to DB...", "blockNumber", last)
+					if err := t.storage.SaveMEVBLock(mev_block, txs); err != nil {
 						// TODO: In this case, either retry, or catch up later...
 						// e.g. add to some queue or data structure for getting this block again
 						// or just retry storing later

@@ -4,9 +4,10 @@ package vars
 import "github.com/holisticode/mev-rpc/common"
 
 var (
-	tablePrefix = common.GetEnv("DB_TABLE_PREFIX", "dev")
+	tablePrefix = common.GetEnv("DB_TABLE_PREFIX", "mev")
+	tableSuffix = common.GetEnv("DB_TABLE_SUFFIX", "dev")
 
-	TableMigrations   = tablePrefix + "_migrations"
-	TableTest         = tablePrefix + "_test"
-	TableMEVAnalytics = tablePrefix + "_mev_analytics"
+	TableMigrations = tablePrefix + "_migrations" + tableSuffix
+	TableMEVBlocks  = tablePrefix + "_blocks_" + tableSuffix
+	TableMEVTxs     = tablePrefix + "_txs_" + tableSuffix
 )

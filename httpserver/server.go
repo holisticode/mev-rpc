@@ -11,11 +11,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/holisticode/mev-rpc/common"
+	"github.com/holisticode/mev-rpc/database"
 	"github.com/holisticode/mev-rpc/metrics"
 	"go.uber.org/atomic"
 )
 
 type HTTPServerConfig struct {
+	DBService database.MEVTraceStorage
+
 	ListenAddr  string
 	MetricsAddr string
 	EnablePprof bool

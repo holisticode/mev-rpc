@@ -7,12 +7,20 @@ import (
 )
 
 type MEVBlock struct {
-	BlockNumber     uint64
-	BlockHash       string
-	MEVTransactions []string
-	Miner           string
-	IsFlashbotMiner bool
-	TotalMinerValue *big.Int
+	BlockNumber     uint64            `json:"blockNumber"`
+	BlockHash       string            `json:"blockHash"`
+	MEVTransactions []*MEVTransaction `json:"transactions"`
+	Miner           string            `json:"miner"`
+	IsFlashbotMiner bool              `json:"flashbot"`
+	TotalMinerValue *big.Int          `json:"totalMinerValue"`
+}
+
+type MEVTransaction struct {
+	BlockNumber uint64   `json:"blockNumber"`
+	TXHash      string   `json:"txHash"`
+	From        string   `json:"from"`
+	To          string   `json:"to"`
+	Value       *big.Int `json:"value"`
 }
 
 func NewNullInt64(i int64) sql.NullInt64 {
