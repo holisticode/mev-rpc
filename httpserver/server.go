@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/flashbots/go-utils/httplogger"
-	"github.com/go-chi/chi/v5"
+	chi "github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/holisticode/mev-rpc/common"
 	"github.com/holisticode/mev-rpc/database"

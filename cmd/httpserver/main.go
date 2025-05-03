@@ -14,7 +14,7 @@ import (
 	"github.com/holisticode/mev-rpc/common"
 	"github.com/holisticode/mev-rpc/database"
 	"github.com/holisticode/mev-rpc/httpserver"
-	"github.com/urfave/cli/v2" // imports as package "cli"
+	cli "github.com/urfave/cli/v2" // imports as package "cli"
 )
 
 var flags []cli.Flag = []cli.Flag{
