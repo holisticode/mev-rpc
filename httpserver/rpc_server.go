@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/flashbots/go-utils/rpcserver"
@@ -17,11 +18,13 @@ const (
 type MEVJSONRPCServer struct {
 	*http.Server
 	dbService database.MEVTraceStorage
+	log       *slog.Logger
 }
 
 func NewJSONRPCServer(cfg *HTTPServerConfig) (*http.Server, error) {
 	mevServer := &MEVJSONRPCServer{
 		dbService: cfg.DBService,
+		log:       cfg.Log,
 	}
 	methods := map[string]any{
 		RPC_MODULE_BY_BLOCK: mevServer.handleByBlock,
@@ -43,13 +46,11 @@ func NewJSONRPCServer(cfg *HTTPServerConfig) (*http.Server, error) {
 }
 
 func (s *MEVJSONRPCServer) handleByTx(ctx context.Context, tx string) (*database.MEVTransaction, error) {
-	mev_tx, err := s.dbService.GetMEVTx(tx)
-	if err != nil {
-		return nil, err
-	}
-	return mev_tx, nil
+	s.log.Debug("MEVJSONRPCServer handleByTx", "tx", tx)
+	return s.dbService.GetMEVTx(tx)
 }
 
-func (s *MEVJSONRPCServer) handleByBlock(ctx context.Context, arg1 int) (bool, error) {
-	return true, nil
+func (s *MEVJSONRPCServer) handleByBlock(ctx context.Context, block string) (*database.MEVBlock, error) {
+	s.log.Debug("MEVJSONRPCServer handleByBlock", "block", block)
+	return s.dbService.GetMEVBlock(block)
 }
