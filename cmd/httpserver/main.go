@@ -114,7 +114,7 @@ func main() {
 			dbConn := cCtx.String("db-connection-string")
 
 			log.Debug("Creating DB backend connection...")
-			storage, err := database.NewStorage(dbConn)
+			storage, err := database.NewStorage(dbConn, cfg.Log)
 			if err != nil {
 				cfg.Log.Error("failed to create database service", "err", err)
 				return err
@@ -128,7 +128,7 @@ func main() {
 			log.Info("Starting tracer...")
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			go tracer.Start(ctx, blocktrace.POLLING_INTERVAL)
+			go tracer.Start(ctx, blocktrace.PollingInterval)
 
 			log.Info("Starting RPC server...")
 			srv, err := httpserver.New(cfg)

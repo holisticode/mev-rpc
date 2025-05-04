@@ -62,25 +62,6 @@ func New(cfg *HTTPServerConfig) (srv *Server, err error) {
 	return srv, nil
 }
 
-func (srv *Server) getRouter() http.Handler {
-	mux := chi.NewRouter()
-	mux.With(srv.httpLogger).Get("/api", srv.handleAPI) // Never serve at `/` (root) path
-	mux.With(srv.httpLogger).Get("/livez", srv.handleLivenessCheck)
-	mux.With(srv.httpLogger).Get("/readyz", srv.handleReadinessCheck)
-	mux.With(srv.httpLogger).Get("/drain", srv.handleDrain)
-	mux.With(srv.httpLogger).Get("/undrain", srv.handleUndrain)
-
-	if srv.cfg.EnablePprof {
-		srv.log.Info("pprof API enabled")
-		mux.Mount("/debug", middleware.Profiler())
-	}
-	return mux
-}
-
-func (srv *Server) httpLogger(next http.Handler) http.Handler {
-	return httplogger.LoggingMiddlewareSlog(srv.log, next)
-}
-
 func (srv *Server) RunInBackground() {
 	// metrics
 	if srv.cfg.MetricsAddr != "" {
@@ -123,4 +104,23 @@ func (srv *Server) Shutdown() {
 			srv.log.Info("Metrics server gracefully stopped")
 		}
 	}
+}
+
+func (srv *Server) getRouter() http.Handler {
+	mux := chi.NewRouter()
+	mux.With(srv.httpLogger).Get("/api", srv.handleAPI) // Never serve at `/` (root) path
+	mux.With(srv.httpLogger).Get("/livez", srv.handleLivenessCheck)
+	mux.With(srv.httpLogger).Get("/readyz", srv.handleReadinessCheck)
+	mux.With(srv.httpLogger).Get("/drain", srv.handleDrain)
+	mux.With(srv.httpLogger).Get("/undrain", srv.handleUndrain)
+
+	if srv.cfg.EnablePprof {
+		srv.log.Info("pprof API enabled")
+		mux.Mount("/debug", middleware.Profiler())
+	}
+	return mux
+}
+
+func (srv *Server) httpLogger(next http.Handler) http.Handler {
+	return httplogger.LoggingMiddlewareSlog(srv.log, next)
 }

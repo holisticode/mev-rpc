@@ -7,17 +7,17 @@ import (
 )
 
 type MEVBlock struct {
-	BlockNumber     uint64            `json:"blockNumber"`
-	BlockHash       string            `json:"blockHash"`
+	BlockNumber     uint64            `json:"blockNumber"` //nolint:tagliatelle
+	BlockHash       string            `json:"blockHash"`   //nolint:tagliatelle
 	MEVTransactions []*MEVTransaction `json:"transactions"`
 	Miner           string            `json:"miner"`
 	IsFlashbotMiner bool              `json:"flashbot"`
-	TotalMinerValue *big.Int          `json:"totalMinerValue"`
+	TotalMinerValue *big.Int          `json:"totalMinerValue"` //nolint:tagliatelle
 }
 
 type MEVTransaction struct {
-	BlockNumber uint64   `json:"blockNumber"`
-	TXHash      string   `json:"txHash"`
+	BlockNumber uint64   `json:"blockNumber"` //nolint:tagliatelle
+	TXHash      string   `json:"txHash"`      //nolint:tagliatelle
 	From        string   `json:"from"`
 	To          string   `json:"to"`
 	Value       *big.Int `json:"value"`

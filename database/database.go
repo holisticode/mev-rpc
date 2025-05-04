@@ -4,6 +4,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"os"
 	"strings"
@@ -15,21 +16,22 @@ import (
 	migrate "github.com/rubenv/sql-migrate"
 )
 
-const LAST_CONSIDERED_BLOCK = 21_000_000
+const LastConsideredBlock = 21_000_000
 
 type DatabaseService struct {
-	DB *sqlx.DB
+	DB  *sqlx.DB
+	log *slog.Logger
 }
 
-func NewDatabaseService(dsn string) (*DatabaseService, error) {
+func NewDatabaseService(dsn string, log *slog.Logger) (*DatabaseService, error) {
 	db, err := sqlx.Connect("postgres", dsn)
 	if err != nil {
 		return nil, err
 	}
 
-	db.DB.SetMaxOpenConns(50)
-	db.DB.SetMaxIdleConns(10)
-	db.DB.SetConnMaxIdleTime(0)
+	db.SetMaxOpenConns(50)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxIdleTime(0)
 
 	// fmt.Println(vars.TableMEVBlocks)
 	if os.Getenv("DB_DONT_APPLY_SCHEMA") == "" {
@@ -40,13 +42,9 @@ func NewDatabaseService(dsn string) (*DatabaseService, error) {
 		}
 	}
 
-	dbService := &DatabaseService{DB: db} //nolint:exhaustruct
+	dbService := &DatabaseService{DB: db, log: log} //nolint:exhaustruct
 	err = dbService.prepareNamedQueries()
 	return dbService, err
-}
-
-func (s *DatabaseService) prepareNamedQueries() (err error) {
-	return nil
 }
 
 func (s *DatabaseService) Close() error {
@@ -59,12 +57,12 @@ func (s *DatabaseService) LatestBlock() (uint64, error) {
 	var lastBlock uint64
 	if err := res.Scan(&lastBlock); err != nil {
 		if err == sql.ErrNoRows {
-			return LAST_CONSIDERED_BLOCK, nil
+			return LastConsideredBlock, nil
 		}
-		return LAST_CONSIDERED_BLOCK, err
+		return LastConsideredBlock, err
 	}
-	if lastBlock < LAST_CONSIDERED_BLOCK {
-		lastBlock = LAST_CONSIDERED_BLOCK
+	if lastBlock < LastConsideredBlock {
+		lastBlock = LastConsideredBlock
 	}
 	return lastBlock, nil
 }
@@ -86,7 +84,7 @@ func (s *DatabaseService) GetMEVBlock(block string) (*MEVBlock, error) {
 
 	var txs []*MEVTransaction
 	var (
-		b_id        uint64
+		bID         uint64
 		blocknumber uint64
 		blockhash   string
 		miner       string
@@ -99,8 +97,8 @@ func (s *DatabaseService) GetMEVBlock(block string) (*MEVBlock, error) {
 	for rows.Next() {
 		count++
 		var (
-			t_id     uint64
-			block_id uint64
+			tID      uint64
+			blockID  uint64
 			blockNum uint64
 			hash     string
 			from     string
@@ -108,14 +106,14 @@ func (s *DatabaseService) GetMEVBlock(block string) (*MEVBlock, error) {
 			value    string
 		)
 		if err := rows.Scan(
-			&b_id,
+			&bID,
 			&blocknumber,
 			&blockhash,
 			&miner,
 			&flashbot,
 			&total,
-			&t_id,
-			&block_id,
+			&tID,
+			&blockID,
 			&blockNum,
 			&hash,
 			&from,
@@ -156,14 +154,14 @@ func (s *DatabaseService) GetMEVTx(txhash string) (*MEVTransaction, error) {
 	row := s.DB.QueryRow(sel, txhash)
 	var (
 		id       uint64
-		block_id uint64
+		blockID  uint64
 		blockNum uint64
 		hash     string
 		from     string
 		to       string
 		value    string
 	)
-	if err := row.Scan(&id, &block_id, &blockNum, &hash, &from, &to, &value); err != nil {
+	if err := row.Scan(&id, &blockID, &blockNum, &hash, &from, &to, &value); err != nil {
 		return nil, err
 	}
 	val := new(big.Int)
@@ -183,22 +181,27 @@ func (s *DatabaseService) SaveMEVBLock(block *MEVBlock, txs []*MEVTransaction) e
 	value := block.TotalMinerValue.String()
 	beginTx, err := s.DB.Beginx()
 	if err != nil {
-		return fmt.Errorf("failed to initiate begin tx: %v", err)
+		return fmt.Errorf("failed to initiate begin tx: %w", err)
 	}
-	defer beginTx.Rollback()
+	defer func() {
+		err := beginTx.Rollback()
+		if err != nil {
+			s.log.Error("Failed to rollback TX!", "error", err)
+		}
+	}()
 
 	bRes := beginTx.QueryRowx(insertBlock, block.BlockNumber, block.BlockHash, block.Miner, block.IsFlashbotMiner, value)
-	var blockId uint64
-	err = bRes.Scan(&blockId)
+	var blockID uint64
+	err = bRes.Scan(&blockID)
 	if err != nil {
-		return fmt.Errorf("failed to get last inserted ID: %v", err)
+		return fmt.Errorf("failed to get last inserted ID: %w", err)
 	}
 	txMap := []map[string]interface{}{}
 
 	for _, tx := range txs {
 		valStr := tx.Value.String()
 		thisTx := map[string]interface{}{
-			"block_id":    blockId,
+			"block_id":    blockID,
 			"blocknumber": block.BlockNumber,
 			"txhash":      tx.TXHash,
 			"src":         tx.From,
@@ -210,11 +213,15 @@ func (s *DatabaseService) SaveMEVBLock(block *MEVBlock, txs []*MEVTransaction) e
 
 	_, err = beginTx.NamedExec(insertTxs, txMap)
 	if err != nil {
-		return fmt.Errorf("failed to insert transactions into DB: %v", err)
+		return fmt.Errorf("failed to insert transactions into DB: %w", err)
 	}
 
 	if err := beginTx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit tx to DB:  %v", err)
+		return fmt.Errorf("failed to commit tx to DB:  %w", err)
 	}
+	return nil
+}
+
+func (s *DatabaseService) prepareNamedQueries() (err error) {
 	return nil
 }

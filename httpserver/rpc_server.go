@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	RPC_MODULE_BY_TX    = "mev_rpc_tx"
-	RPC_MODULE_BY_BLOCK = "mev_rpc_block"
+	RPCModuleByTX    = "mev_rpc_tx"
+	RPCModuleByBlock = "mev_rpc_block"
 )
 
 type MEVJSONRPCServer struct {
@@ -27,13 +27,13 @@ func NewJSONRPCServer(cfg *HTTPServerConfig) (*http.Server, error) {
 		log:       cfg.Log,
 	}
 	methods := map[string]any{
-		RPC_MODULE_BY_BLOCK: mevServer.handleByBlock,
-		RPC_MODULE_BY_TX:    mevServer.handleByTx,
+		RPCModuleByBlock: mevServer.handleByBlock,
+		RPCModuleByTX:    mevServer.handleByTx,
 	}
 	opts := rpcserver.JSONRPCHandlerOpts{}
 	handler, err := rpcserver.NewJSONRPCHandler(methods, opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed creating JSONRPCHandler: %v", err)
+		return nil, fmt.Errorf("failed creating JSONRPCHandler: %w", err)
 	}
 	s := &http.Server{
 		Addr:         cfg.ListenAddr,

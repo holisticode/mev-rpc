@@ -31,17 +31,17 @@ func TestBlockTrace(t *testing.T) {
 
 	// Call the function under test, using the mock as a
 	mockRPCClient := mocks.NewMockRPCClient(ctrl)
-	jsonHash := getJSON("./testdata/block_number.json", t)
-	r1 := mockRPCClient.EXPECT().Call(gomock.Any(), LAST_BLOCK_RPC, nil).Return(jsonHash, nil)
-	jsonTrace := getJSON("./testdata/trace_block.json", t)
-	r2 := mockRPCClient.EXPECT().Call(gomock.Any(), TRACE_BLOCK_RPC, gomock.Any()).After(r1).Return(jsonTrace, nil)
-	jsonBlock := getJSON("./testdata/block_hash.json", t)
-	r3 := mockRPCClient.EXPECT().Call(gomock.Any(), BLOCK_BY_HASH_RPC, gomock.Any()).After(r2).Return(jsonBlock, nil)
-	r4 := mockRPCClient.EXPECT().Call(gomock.Any(), TRACE_BLOCK_RPC, gomock.Any()).After(r3).Return(jsonTrace, nil)
-	r5 := mockRPCClient.EXPECT().Call(gomock.Any(), BLOCK_BY_HASH_RPC, gomock.Any()).After(r4).Return(jsonBlock, nil)
-	r6 := mockRPCClient.EXPECT().Call(gomock.Any(), TRACE_BLOCK_RPC, gomock.Any()).After(r5).Return(jsonTrace, nil)
-	r7 := mockRPCClient.EXPECT().Call(gomock.Any(), BLOCK_BY_HASH_RPC, gomock.Any()).After(r6).Return(jsonBlock, nil)
-	mockRPCClient.EXPECT().Call(gomock.Any(), LAST_BLOCK_RPC, nil).After(r7).Return(jsonHash, nil)
+	jsonHash := getJSON(t, "./testdata/block_number.json")
+	r1 := mockRPCClient.EXPECT().Call(gomock.Any(), LastBlockRPC, nil).Return(jsonHash, nil)
+	jsonTrace := getJSON(t, "./testdata/trace_block.json")
+	r2 := mockRPCClient.EXPECT().Call(gomock.Any(), TraceBlockRPC, gomock.Any()).After(r1).Return(jsonTrace, nil)
+	jsonBlock := getJSON(t, "./testdata/block_hash.json")
+	r3 := mockRPCClient.EXPECT().Call(gomock.Any(), BlockByHashRPC, gomock.Any()).After(r2).Return(jsonBlock, nil)
+	r4 := mockRPCClient.EXPECT().Call(gomock.Any(), TraceBlockRPC, gomock.Any()).After(r3).Return(jsonTrace, nil)
+	r5 := mockRPCClient.EXPECT().Call(gomock.Any(), BlockByHashRPC, gomock.Any()).After(r4).Return(jsonBlock, nil)
+	r6 := mockRPCClient.EXPECT().Call(gomock.Any(), TraceBlockRPC, gomock.Any()).After(r5).Return(jsonTrace, nil)
+	r7 := mockRPCClient.EXPECT().Call(gomock.Any(), BlockByHashRPC, gomock.Any()).After(r6).Return(jsonBlock, nil)
+	mockRPCClient.EXPECT().Call(gomock.Any(), LastBlockRPC, nil).After(r7).Return(jsonHash, nil)
 	log := common.SetupLogger(&common.LoggingOpts{
 		Debug:   true,
 		JSON:    false,
@@ -55,18 +55,19 @@ func TestBlockTrace(t *testing.T) {
 func TestTraceBlockJSONParse(t *testing.T) {
 	var btr TraceBlockResponse
 
-	raw := getJSONResult("./testdata/trace_block.json", t)
+	raw := getJSONResult(t, "./testdata/trace_block.json")
 	strResult := string(raw)
 	reader := strings.NewReader(strResult)
 	err := json.NewDecoder(reader).Decode(&btr)
 	require.NoError(t, err)
-	require.Equal(t, 989, len(btr))
+	require.Len(t, btr, 989)
 	for _, b := range btr {
-		require.Equal(t, b.BlockHash, "0x4c2707c769754fe23764a765fc8d50a5fa4172a670e46671dd3e1c0c34036dfe")
+		require.Equal(t, "0x4c2707c769754fe23764a765fc8d50a5fa4172a670e46671dd3e1c0c34036dfe", b.BlockHash)
 	}
 }
 
-func getJSONResult(filename string, t *testing.T) json.RawMessage {
+func getJSONResult(t *testing.T, filename string) json.RawMessage {
+	t.Helper()
 	f, err := os.Open(filename)
 	require.NoError(t, err)
 	defer f.Close()
@@ -84,7 +85,8 @@ func getJSONResult(filename string, t *testing.T) json.RawMessage {
 	return result
 }
 
-func getJSON(filename string, t *testing.T) *rpcclient.RPCResponse {
+func getJSON(t *testing.T, filename string) *rpcclient.RPCResponse {
+	t.Helper()
 	f, err := os.Open(filename)
 	require.NoError(t, err)
 	defer f.Close()

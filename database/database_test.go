@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"log/slog"
 	"math/big"
 	"os"
 	"testing"
@@ -33,7 +34,7 @@ func resetDatabase(t *testing.T) *DatabaseService {
 	_, err = _db.Exec(`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`)
 	require.NoError(t, err)
 
-	db, err := NewDatabaseService(testDBDSN)
+	db, err := NewDatabaseService(testDBDSN, getTestLogger())
 	require.NoError(t, err)
 	return db
 }
@@ -53,18 +54,18 @@ func Test_GetMEVBlock(t *testing.T) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 	_, err = db.GetMEVBlock("1234")
 	require.ErrorIs(t, err, sql.ErrNoRows)
-	mev_block := createMEVBlock()
+	mevBlock := createMEVBlock()
 	txHash1 := "0xb5c8bd9430b6cc87a0e2fe110ece6bf527fa4f170a4bc8cd032f768fc5a5bb50"
 	txHash2 := "0xb5c8bd9430b6cc87a0e2fe11aaaaaaaaaaaaaaaaaa4bc8cd032f768fc5a5bb50"
-	mev_tx1 := createMEVTx(txHash1)
-	mev_tx2 := createMEVTx(txHash2)
-	txs := []*MEVTransaction{mev_tx1, mev_tx2}
-	mev_block.MEVTransactions = txs
-	err = db.SaveMEVBLock(mev_block, txs)
+	mevTx1 := createMEVTx(txHash1)
+	mevTx2 := createMEVTx(txHash2)
+	txs := []*MEVTransaction{mevTx1, mevTx2}
+	mevBlock.MEVTransactions = txs
+	err = db.SaveMEVBLock(mevBlock, txs)
 	require.NoError(t, err)
-	control, err := db.GetMEVBlock(mev_block.BlockHash)
+	control, err := db.GetMEVBlock(mevBlock.BlockHash)
 	require.NoError(t, err)
-	require.EqualValues(t, mev_block, control)
+	require.Equal(t, mevBlock, control)
 }
 
 func Test_GetMEVTx(t *testing.T) {
@@ -72,20 +73,20 @@ func Test_GetMEVTx(t *testing.T) {
 	_, err := db.GetMEVTx("0x1234")
 	require.ErrorIs(t, err, sql.ErrNoRows)
 	txHash := "0xb5c8bd9430b6cc87a0e2fe110ece6bf527fa4f170a4bc8cd032f768fc5a5bb50"
-	mev_block := createMEVBlock()
-	mev_tx := createMEVTx(txHash)
-	err = db.SaveMEVBLock(mev_block, []*MEVTransaction{mev_tx})
+	mevBlock := createMEVBlock()
+	mevTx := createMEVTx(txHash)
+	err = db.SaveMEVBLock(mevBlock, []*MEVTransaction{mevTx})
 	require.NoError(t, err)
 	control, err := db.GetMEVTx(txHash)
 	require.NoError(t, err)
-	require.EqualValues(t, mev_tx, control)
+	require.Equal(t, mevTx, control)
 }
 
 func Test_LatestBlock(t *testing.T) {
 	db := resetDatabase(t)
 	x, err := db.LatestBlock()
 	require.NoError(t, err)
-	require.Equal(t, uint64(LAST_CONSIDERED_BLOCK), x)
+	require.Equal(t, uint64(LastConsideredBlock), x)
 	insertBlock := insertBlockQuery()
 	_ = db.DB.QueryRow(insertBlock, 21_000_042, "0x1234", "0x1234", true, 4242)
 	x, err = db.LatestBlock()
@@ -95,10 +96,6 @@ func Test_LatestBlock(t *testing.T) {
 
 func insertBlockQuery() string {
 	return `INSERT INTO ` + vars.TableMEVBlocks + `(blocknumber, blockhash, miner, flashbot, total) VALUES ($1, $2, $3, $4, $5) RETURNING id`
-}
-
-func insertTxQuery() string {
-	return `INSERT INTO ` + vars.TableMEVTxs + `(block_id, txhash, src, dest, value) VALUES ($1, $2, $3, $4, $5) RETURNING id`
 }
 
 func createMEVBlock() *MEVBlock {
@@ -119,4 +116,13 @@ func createMEVTx(txHash string) *MEVTransaction {
 		To:          "0x4321",
 		Value:       big.NewInt(42),
 	}
+}
+
+func getTestLogger() *slog.Logger {
+	return common.SetupLogger(&common.LoggingOpts{
+		Debug:   true,
+		JSON:    false,
+		Service: "test",
+		Version: "test",
+	})
 }

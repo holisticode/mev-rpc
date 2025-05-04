@@ -58,7 +58,7 @@ func TestRPCEndpoints(t *testing.T) {
             "params": ["%s"
             ]
         }`
-		jsonReq1 := fmt.Sprintf(jsonReq, RPC_MODULE_BY_BLOCK, "0x42")
+		jsonReq1 := fmt.Sprintf(jsonReq, RPCModuleByBlock, "0x42")
 		reader := bytes.NewReader([]byte(jsonReq1))
 		req, err := http.NewRequest(http.MethodPost, "/", reader) //nolint:goconst,nolintlint
 		req.Header.Add("Content-Type", "application/json")
@@ -73,10 +73,10 @@ func TestRPCEndpoints(t *testing.T) {
 		err = json.NewDecoder(respReader).Decode(&control)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, rr.Code)
-		require.EqualValues(t, &empty, &control)
+		require.Equal(t, &empty, &control)
 
 		// 2nd request
-		jsonReq2 := fmt.Sprintf(jsonReq, RPC_MODULE_BY_BLOCK, strNum)
+		jsonReq2 := fmt.Sprintf(jsonReq, RPCModuleByBlock, strNum)
 		reader = bytes.NewReader([]byte(jsonReq2))
 		req, err = http.NewRequest(http.MethodPost, "/", reader) //nolint:goconst,nolintlint
 		req.Header.Add("Content-Type", "application/json")
@@ -89,10 +89,10 @@ func TestRPCEndpoints(t *testing.T) {
 		err = json.NewDecoder(respReader).Decode(&control)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, rr.Code)
-		require.EqualValues(t, block, &control)
+		require.Equal(t, block, &control)
 
 		// 4th request
-		jsonReq4 := fmt.Sprintf(jsonReq, RPC_MODULE_BY_TX, "0x4444")
+		jsonReq4 := fmt.Sprintf(jsonReq, RPCModuleByTX, "0x4444")
 		reader = bytes.NewReader([]byte(jsonReq4))
 		req, err = http.NewRequest(http.MethodPost, "/", reader) //nolint:goconst,nolintlint
 		req.Header.Add("Content-Type", "application/json")
@@ -106,10 +106,10 @@ func TestRPCEndpoints(t *testing.T) {
 		err = json.NewDecoder(respReader).Decode(&controlTx)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, rr.Code)
-		require.EqualValues(t, &emptyTx, &controlTx)
+		require.Equal(t, &emptyTx, &controlTx)
 
 		// 3rd request
-		jsonReq3 := fmt.Sprintf(jsonReq, RPC_MODULE_BY_TX, "0x1234")
+		jsonReq3 := fmt.Sprintf(jsonReq, RPCModuleByTX, "0x1234")
 		reader = bytes.NewReader([]byte(jsonReq3))
 		req, err = http.NewRequest(http.MethodPost, "/", reader) //nolint:goconst,nolintlint
 		req.Header.Add("Content-Type", "application/json")
@@ -122,8 +122,7 @@ func TestRPCEndpoints(t *testing.T) {
 		err = json.NewDecoder(respReader).Decode(&controlTx)
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, rr.Code)
-		require.EqualValues(t, tx1, &controlTx)
-
+		require.Equal(t, tx1, &controlTx)
 	}
 }
 
