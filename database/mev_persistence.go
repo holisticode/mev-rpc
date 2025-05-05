@@ -8,7 +8,7 @@ type MEVTraceStorage interface {
 	GetMEVTx(tx string) (*MEVTransaction, error)
 	GetMEVBlock(block string) (*MEVBlock, error)
 	OldestBlock() uint64
-	SaveMEVBLock(block *MEVBlock, txs []*MEVTransaction) error //nolint:ireturn
+	SaveMEVBLock(block *MEVBlock, txs []*MEVTransaction) error
 }
 
 // NewStorage returns the service to store the data
