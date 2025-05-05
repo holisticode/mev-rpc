@@ -1,7 +1,11 @@
 package blocktrace
 
+// This file contains objects used to marshal/unmarshal to/from JSON
+
+// TraceBlockResponse is the wrapper for the trace_block response
 type TraceBlockResponse []BlockData
 
+// BlockData is the actual block info in trace_block
 type BlockData struct {
 	Action              Action   `json:"action"`
 	BlockHash           string   `json:"blockHash"`   //nolint:tagliatelle
@@ -14,6 +18,7 @@ type BlockData struct {
 	Type                string   `json:"type"`
 }
 
+// Action contains tx data in blocks
 type Action struct {
 	From     string `json:"from"`
 	CallType string `json:"callType"` //nolint:tagliatelle
@@ -23,11 +28,13 @@ type Action struct {
 	Value    string `json:"value"`
 }
 
+// Result is from the upper level BlockData
 type Result struct {
 	GasUsed string `json:"gasUsed"` //nolint:tagliatelle
 	Output  string `json:"output"`
 }
 
+// Block is the representation of the eth_getBlockByHash RPC response
 type Block struct {
 	Number           string   `json:"number"`
 	Hash             string   `json:"hash"`

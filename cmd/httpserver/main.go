@@ -20,7 +20,7 @@ import (
 var flags []cli.Flag = []cli.Flag{
 	&cli.StringFlag{
 		Name:  "listen-addr",
-		Value: "127.0.0.1:8080",
+		Value: "0.0.0.0:8080",
 		Usage: "address to listen on for API",
 	},
 	&cli.StringFlag{
@@ -35,7 +35,7 @@ var flags []cli.Flag = []cli.Flag{
 	},
 	&cli.BoolFlag{
 		Name:  "log-debug",
-		Value: true,
+		Value: false,
 		Usage: "log debug messages",
 	},
 	&cli.BoolFlag{
@@ -124,7 +124,7 @@ func main() {
 			log.Debug("Creating Block Tracer...")
 			rpcClient := rpcclient.NewClient(rpcEndpoint)
 			tracer := blocktrace.NewBlockTracer(rpcClient, storage, log)
-			// TODO cleanup
+
 			log.Info("Starting tracer...")
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()

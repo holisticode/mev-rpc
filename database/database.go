@@ -3,6 +3,7 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math/big"
@@ -16,6 +17,7 @@ import (
 	migrate "github.com/rubenv/sql-migrate"
 )
 
+// LastConsideredBlock is the block number from which we start scanning
 const LastConsideredBlock = 21_000_000
 
 type DatabaseService struct {
@@ -51,6 +53,7 @@ func (s *DatabaseService) Close() error {
 	return s.DB.Close()
 }
 
+// LatestBlock returns the latest block we stored in our DB
 func (s *DatabaseService) LatestBlock() (uint64, error) {
 	sel := `SELECT blocknumber from ` + vars.TableMEVBlocks + ` ORDER BY blocknumber DESC LIMIT 1`
 	res := s.DB.QueryRow(sel)
@@ -67,15 +70,19 @@ func (s *DatabaseService) LatestBlock() (uint64, error) {
 	return lastBlock, nil
 }
 
+// OldestBlock is currently unused
 func (s *DatabaseService) OldestBlock() uint64 {
 	return 0
 }
 
+// GetMEVBlock returns a block by its number OR its hash
+// Returns an error if the block can not be found
 func (s *DatabaseService) GetMEVBlock(block string) (*MEVBlock, error) {
 	searchCol := "blocknumber"
 	if strings.HasPrefix(block, "0x") {
 		searchCol = "blockhash"
 	}
+	// This SQL code will return a row for each tx associated to the block, which means...
 	sel := `SELECT b.*,t.* from ` + vars.TableMEVBlocks + ` b INNER JOIN ` + vars.TableMEVTxs + ` t ON b.id = t.block_id WHERE b.` + searchCol + ` = ($1)`
 	rows, err := s.DB.Query(sel, block)
 	if err != nil {
@@ -94,6 +101,8 @@ func (s *DatabaseService) GetMEVBlock(block string) (*MEVBlock, error) {
 
 	count := 0
 
+	// TODO: ...that this can and probably should be refactored
+	// Because the block data is being repeated on every row scan
 	for rows.Next() {
 		count++
 		var (
@@ -134,11 +143,13 @@ func (s *DatabaseService) GetMEVBlock(block string) (*MEVBlock, error) {
 		txs = append(txs, tx)
 	}
 
+	// if now txs could be found then there's no block either
 	if count == 0 {
 		return nil, sql.ErrNoRows
 	}
 	tot := new(big.Int)
 	tot.SetString(total, 10)
+	// return the block with its transactions
 	return &MEVBlock{
 		BlockNumber:     blocknumber,
 		BlockHash:       blockhash,
@@ -149,6 +160,8 @@ func (s *DatabaseService) GetMEVBlock(block string) (*MEVBlock, error) {
 	}, nil
 }
 
+// GetMEVTx returns a single tx by its hash
+// If it can't find the tx, it returns an error
 func (s *DatabaseService) GetMEVTx(txhash string) (*MEVTransaction, error) {
 	sel := `SELECT * from ` + vars.TableMEVTxs + ` WHERE txhash = ($1)`
 	row := s.DB.QueryRow(sel, txhash)
@@ -175,6 +188,7 @@ func (s *DatabaseService) GetMEVTx(txhash string) (*MEVTransaction, error) {
 	}, nil
 }
 
+// SaveMEVBLock saves the block and its transactions to disk in a one to many relationship
 func (s *DatabaseService) SaveMEVBLock(block *MEVBlock, txs []*MEVTransaction) error {
 	insertBlock := `INSERT INTO ` + vars.TableMEVBlocks + `(blocknumber, blockhash, miner, flashbot, total) VALUES ($1, $2, $3, $4, $5) RETURNING id`
 	insertTxs := `INSERT INTO ` + vars.TableMEVTxs + `(block_id, blocknumber, txhash, src, dest, value) VALUES (:block_id, :blocknumber, :txhash, :src, :dest, :value)`
@@ -185,7 +199,7 @@ func (s *DatabaseService) SaveMEVBLock(block *MEVBlock, txs []*MEVTransaction) e
 	}
 	defer func() {
 		err := beginTx.Rollback()
-		if err != nil {
+		if err != nil && !errors.Is(err, sql.ErrTxDone) {
 			s.log.Error("Failed to rollback TX!", "error", err)
 		}
 	}()
@@ -219,6 +233,7 @@ func (s *DatabaseService) SaveMEVBLock(block *MEVBlock, txs []*MEVTransaction) e
 	if err := beginTx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit tx to DB:  %w", err)
 	}
+	s.log.Debug("block saved successfully", "block", block.BlockNumber)
 	return nil
 }
 

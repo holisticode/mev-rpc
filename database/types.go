@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// MEVBlock is the datatype for a block we are going to store in the DB
 type MEVBlock struct {
 	BlockNumber     uint64            `json:"blockNumber"` //nolint:tagliatelle
 	BlockHash       string            `json:"blockHash"`   //nolint:tagliatelle
@@ -15,6 +16,7 @@ type MEVBlock struct {
 	TotalMinerValue *big.Int          `json:"totalMinerValue"` //nolint:tagliatelle
 }
 
+// MEVTransaction is the datatype for a tx we are going to store in the DB
 type MEVTransaction struct {
 	BlockNumber uint64   `json:"blockNumber"` //nolint:tagliatelle
 	TXHash      string   `json:"txHash"`      //nolint:tagliatelle
