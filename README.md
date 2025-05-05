@@ -2,7 +2,7 @@
 
 # Overview
 
-This tool queries the ethereum the ethereum chain for block information and scans its transactions for any transaction which have affected the coinbase address of a given block.
+This tool queries the ethereum chain for block information and scans its transactions for any such transaction which affected the coinbase address of a given block.
 
 ## Requirements
 
@@ -25,7 +25,7 @@ Currently it offers two methods:
 * `mev_rpc_block`
 
 The former allows to get information for a specific transaction, by providing the transaction hash.
-The latter returns information for a specific block, including all transactions affecting the coinbase, by providing blocknumber or block hash.
+The latter returns information for a specific block, including all transactions affecting the coinbase, by providing block number or block hash.
 
 ### mev_rpc_tx
 
@@ -55,7 +55,7 @@ For example:
 curl -X POST -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":"id","method":"mev_rpc_block","params":["21003051"]}' http://localhost:8080
 ```
 
-If the block has been store in the local DB, it returns the correspondent information:
+If the block has been stored in the local DB, it returns the correspondent information:
 
 ```sh
 {"jsonrpc":"2.0","id":"id","result":{"blockNumber":21003051,"blockHash":"0x5c0a2b33d14a8e4b25c5aaed9f0f39e76c13eff93cd05c7f1902823b05f05f26","transactions":[{"blockNumber":21003051,"txHash":"0x197431ccae307bf133272e57305aa366b8314b8f89f41f6e6c129e3131677ad1","from":"0x6f1cdbbb4d53d226cf4b917bf768b94acbab6168","to":"0x4838b106fce9647bdf1e7877bf73ce8b0bad5f97","value":359781034660905}],"miner":"0x4838b106fce9647bdf1e7877bf73ce8b0bad5f97","flashbot":false,"totalMinerValue":359781034660905}}
@@ -70,7 +70,7 @@ If the block is not found, we get an empty response:
 ## Continuous operation
 
 The tool first catches up from the latest stored block locally to the last known block on chain, by querying the latest block via the `eth_blockNumber` RPC call.
-**This can take a while**
+**This can take a while**.
 
 After that, the `MEV Block Tracer` will poll every 6 seconds for a new block and apply its function on this block.
 
@@ -80,7 +80,7 @@ After that, the `MEV Block Tracer` will poll every 6 seconds for a new block and
 However, it is **currently not able** to rollback new blocks added to the chain and then removed due to reorgs.
 This is a feature which would have to be added in the future.
 
-# How To Ru
+# How To Run
 
 `MEV Block Tracer` requires an `--rpc-endpoint` and a `db-connection-string` command line parameter to operate.
 
